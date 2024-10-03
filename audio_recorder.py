@@ -1,53 +1,62 @@
-import pyaudio
+# audio_recorder.py
+import sounddevice as sd
+import numpy as np
 import wave
 import threading
+import logging
 
 
 class AudioRecorder:
     def __init__(self, device_index, filename="output.wav"):
         self.device_index = device_index
         self.filename = filename
-        self.chunk = 1024
-        self.format = pyaudio.paInt16
         self.channels = 1
-        self.rate = 44100
+        self.rate = 44100  # Standard-Abtastrate
         self.recording = False
         self.frames = []
-        self.thread = None
 
     def start_recording(self):
-        if not self.recording:
-            self.recording = True
-            self.thread = threading.Thread(target=self.record)
-            self.thread.start()
+        logging.debug("Start recording")
+        self.recording = True
+        threading.Thread(target=self.record).start()
 
     def stop_recording(self):
-        if self.recording:
-            self.recording = False
-            if self.thread is not None:
-                self.thread.join()
-            self.save_wave_file()
+        logging.debug("Stop recording requested")
+        self.recording = False
 
     def record(self):
-        p = pyaudio.PyAudio()
-        stream = p.open(format=self.format,
-                        channels=self.channels,
-                        rate=self.rate,
-                        input=True,
-                        frames_per_buffer=self.chunk,
-                        input_device_index=self.device_index)
-        self.frames = []
-        while self.recording:
-            data = stream.read(self.chunk, exception_on_overflow=False)
-            self.frames.append(data)
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
+        def callback(indata, frames, time, status):
+            if status:
+                logging.error(f"Recording status: {status}")
+            if self.recording:
+                self.frames.append(indata.copy())
+            else:
+                raise sd.CallbackStop()
+
+        try:
+            with sd.InputStream(samplerate=self.rate,
+                                channels=self.channels,
+                                callback=callback,
+                                device=self.device_index):
+                logging.debug(
+                    "InputStream opened with device index {}".format(self.device_index))
+                while self.recording:
+                    sd.sleep(100)
+            self.save_wave_file()
+            logging.debug("Recording finished and file saved")
+        except Exception as e:
+            logging.error(f"Fehler während der Aufnahme: {e}", exc_info=True)
 
     def save_wave_file(self):
-        wf = wave.open(self.filename, 'wb')
-        wf.setnchannels(self.channels)
-        wf.setsampwidth(pyaudio.get_sample_size(self.format))
-        wf.setframerate(self.rate)
-        wf.writeframes(b''.join(self.frames))
-        wf.close()
+        try:
+            wf = wave.open(self.filename, 'wb')
+            wf.setnchannels(self.channels)
+            wf.setsampwidth(2)  # 16-bit audio
+            wf.setframerate(self.rate)
+            wf.writeframes(b''.join([frame.tobytes()
+                           for frame in self.frames]))
+            wf.close()
+            logging.debug("WAV file saved successfully")
+        except Exception as e:
+            logging.error(f"Fehler beim Speichern der Datei: {
+                          e}", exc_info=True)
