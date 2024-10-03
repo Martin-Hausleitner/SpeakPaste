@@ -2,6 +2,7 @@
 import sieve
 import logging
 
+
 class SieveTranscriber:
     def __init__(self):
         pass
@@ -9,9 +10,10 @@ class SieveTranscriber:
     def transcribe(self, audio_file_path):
         logging.debug("Starting transcription with Sieve")
         try:
-            file = sieve.File(path=audio_file_path)
+            # Replace sieve.File with the file path string
+            file = audio_file_path
 
-            # Parameter gemäß Ihren Anforderungen
+            # Parameters as per your requirements
             word_level_timestamps = False
             speaker_diarization = False
             speed_boost = True
@@ -30,8 +32,17 @@ class SieveTranscriber:
             pyannote_segmentation_threshold = 0.8
             initial_prompt = ""
 
-            speech_transcriber = sieve.Function("sieve/speech_transcriber")
-            output = speech_transcriber(
+            # Initialize the speech transcriber function
+            # Ensure that 'functions' is the correct attribute in the sieve module
+            speech_transcriber = sieve.functions.get(
+                "sieve/speech_transcriber")
+            if not speech_transcriber:
+                logging.error(
+                    "Could not retrieve 'sieve/speech_transcriber' function from sieve.")
+                return ""
+
+            # Run the transcriber with the provided parameters
+            output = speech_transcriber.run(
                 file=file,
                 word_level_timestamps=word_level_timestamps,
                 speaker_diarization=speaker_diarization,
@@ -52,12 +63,18 @@ class SieveTranscriber:
                 initial_prompt=initial_prompt
             )
 
+            # Aggregate the transcribed text
             transcribed_text = ""
             for output_object in output:
                 transcribed_text += output_object.get("text", "")
             logging.debug("Transcription completed")
             return transcribed_text
 
+        except AttributeError as ae:
+            logging.error(f"Attribute error during transcription: {
+                          ae}", exc_info=True)
+            return ""
         except Exception as e:
-            logging.error(f"Ein Fehler ist während der Transkription aufgetreten: {e}", exc_info=True)
+            logging.error(f"An error occurred during transcription: {
+                          e}", exc_info=True)
             return ""
