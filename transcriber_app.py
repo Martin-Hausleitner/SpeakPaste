@@ -129,51 +129,52 @@ class TranscriberApp:
         return index
 
     def process_audio(self, paste_after=False):
-        self.output_text.insert(tk.END, "Audio wird verarbeitet...\n")
-        self.output_text.see(tk.END)
         self.transcribed_text = ""
-
-        # Pfad zur Audiodatei
         audio_file_path = 'output.wav'
 
-        # Transkription mit der Sieve-API
         transcriber = SieveTranscriber()
         self.transcribed_text = transcriber.transcribe(audio_file_path)
 
         if self.transcribed_text:
             pyperclip.copy(self.transcribed_text)
-            self.output_text.insert(tk.END, f"Transkript kopiert:\n{
-                                    self.transcribed_text}\n")
-            self.status_label.config(text="Bereit")
-
+            # GUI-Updates im Hauptthread ausführen
+            self.root.after(0, lambda: self.output_text.insert(
+                tk.END, f"Transkript kopiert:\n{self.transcribed_text}\n"))
+            self.root.after(0, lambda: self.status_label.config(text="Bereit"))
             # Finish-Sound abspielen
             threading.Thread(target=self.sound_player.play_sound,
                              args=('finish_sound.wav',)).start()
-
-            # Roten Punkt anzeigen
-            self.show_red_dot_at_cursor()
+            # Roten Punkt im Hauptthread anzeigen
+            self.root.after(0, self.show_red_dot_at_cursor)
 
             # Automatisches Einfügen, falls gewünscht
             if paste_after:
-                self.paste_transcribed_text()
+                self.root.after(100, self._paste_text)
         else:
-            self.output_text.insert(
-                tk.END, "Kein Text im Ergebnis gefunden.\n")
-            self.status_label.config(text="Fehler aufgetreten")
-        self.output_text.see(tk.END)
+            self.root.after(0, lambda: self.output_text.insert(
+                tk.END, "Kein Text im Ergebnis gefunden.\n"))
+            self.root.after(0, lambda: self.status_label.config(
+                text="Fehler aufgetreten"))
+        self.root.after(0, self.output_text.see(tk.END))
 
     def paste_transcribed_text(self):
         if self.transcribed_text:
-            # Kleinen Moment warten, um sicherzustellen, dass der Fokus korrekt ist
-            threading.Timer(0.1, self._paste_text).start()
+            # Einfügeoperation im Hauptthread nach kurzer Verzögerung planen
+            self.root.after(100, self._paste_text)
         else:
-            self.output_text.insert(
-                tk.END, "Kein Text zum Einfügen verfügbar.\n")
-            self.output_text.see(tk.END)
+            self.root.after(0, lambda: self.output_text.insert(
+                tk.END, "Kein Text zum Einfügen verfügbar.\n"))
+            self.root.after(0, self.output_text.see(tk.END))
 
     def _paste_text(self):
-        import keyboard
-        keyboard.write(self.transcribed_text)
+        from pynput.keyboard import Controller, Key
+        keyboard = Controller()
+        # Sicherstellen, dass die Steuerungstaste losgelassen ist
+        keyboard.release(Key.ctrl)
+        # Strg+V zum Einfügen simulieren
+        with keyboard.pressed(Key.ctrl):
+            keyboard.press('v')
+            keyboard.release('v')
 
     def show_red_dot_at_cursor(self):
         try:
@@ -187,7 +188,7 @@ class TranscriberApp:
             duration = 500  # Dauer in Millisekunden
 
             # Neues Top-Level-Fenster erstellen
-            dot_window = tk.Toplevel()
+            dot_window = tk.Toplevel(self.root)
             dot_window.overrideredirect(True)  # Fensterrahmen entfernen
             dot_window.attributes('-topmost', True)  # Immer im Vordergrund
             dot_window.configure(background='red')
@@ -197,6 +198,6 @@ class TranscriberApp:
             # Fenster nach bestimmter Zeit zerstören
             dot_window.after(duration, dot_window.destroy)
         except Exception as e:
-            self.output_text.insert(
-                tk.END, f"Fehler beim Anzeigen des roten Punkts: {e}\n")
-            self.output_text.see(tk.END)
+            self.root.after(0, lambda: self.output_text.insert(
+                tk.END, f"Fehler beim Anzeigen des roten Punkts: {e}\n"))
+            self.root.after(0, self.output_text.see(tk.END))
