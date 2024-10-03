@@ -10,6 +10,7 @@ from audio_recorder import AudioRecorder
 from sieve_transcriber import SieveTranscriber
 from keyboard_listener import KeyboardListener
 
+
 class TranscriberApp:
     def __init__(self, root):
         self.root = root
@@ -63,7 +64,8 @@ class TranscriberApp:
 
     def get_audio_devices(self):
         devices = sd.query_devices()
-        input_devices = [device for device in devices if device['max_input_channels'] > 0]
+        input_devices = [
+            device for device in devices if device['max_input_channels'] > 0]
         device_names = [device['name'] for device in input_devices]
         for idx, name in enumerate(device_names):
             logging.debug(f"Found audio device: {name} (Index: {idx})")
@@ -94,7 +96,8 @@ class TranscriberApp:
             self.status_label.config(text="Aufnahme läuft...")
             device_name = self.selected_device.get()
             device_index = self.get_device_index_by_name(device_name)
-            logging.debug(f"Selected device: {device_name} (Index: {device_index})")
+            logging.debug(f"Selected device: {
+                          device_name} (Index: {device_index})")
             self.audio_recorder = AudioRecorder(device_index)
             self.audio_recorder.start_recording()
             self.is_recording = True
@@ -132,7 +135,8 @@ class TranscriberApp:
             except pyperclip.PyperclipException:
                 self.root.after(0, lambda: self.output_text.insert(
                     tk.END, "Fehler beim Kopieren in die Zwischenablage. Stellen Sie sicher, dass xclip oder xsel installiert ist.\n"))
-                logging.error("Failed to copy text to clipboard", exc_info=True)
+                logging.error(
+                    "Failed to copy text to clipboard", exc_info=True)
             # GUI-Updates im Hauptthread ausführen
             self.root.after(0, lambda: self.output_text.insert(
                 tk.END, f"Transkript kopiert:\n{self.transcribed_text}\n"))
