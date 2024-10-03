@@ -1,5 +1,3 @@
-# keyboard_listener.py
-import threading
 from pynput import keyboard
 
 
@@ -13,42 +11,38 @@ class KeyboardListener:
 
     def on_press(self, key):
         try:
-            if key == keyboard.Key[self.app.shortcut_record.lower()]:
-                self.toggle_recording()
-            elif key == keyboard.Key[self.app.shortcut_paste_record.lower()]:
-                self.start_record_and_paste()
-            elif key == keyboard.Key[self.app.push_to_talk_key.lower()]:
-                self.start_push_to_talk()
-        except (AttributeError, KeyError):
-            pass
+            # Shortcut für einfache Aufnahme
+            if key == self.app.shortcut_record:
+                if not self.app.is_recording:
+                    self.app.paste_after = False
+                    self.app.start_recording()
+
+            # Shortcut für Aufnahme mit Einfügen
+            elif key == self.app.shortcut_paste_record:
+                if not self.app.is_recording:
+                    self.app.paste_after = True
+                    self.app.start_recording()
+                    # Sofort stoppen, da es sich nicht um Push-to-Talk handelt
+                    self.app.stop_recording()
+
+            # Push-to-Talk Taste
+            elif key == self.app.push_to_talk_key:
+                if not self.app.is_recording:
+                    self.app.paste_after = True
+                    self.app.start_recording()
+
+        except Exception as e:
+            print(f"Fehler in on_press: {e}")
 
     def on_release(self, key):
         try:
-            if key == keyboard.Key[self.app.shortcut_paste_record.lower()]:
-                self.stop_record_and_paste()
-            elif key == keyboard.Key[self.app.push_to_talk_key.lower()]:
-                self.stop_push_to_talk()
-        except (AttributeError, KeyError):
-            pass
+            if key == self.app.shortcut_record:
+                if self.app.is_recording:
+                    self.app.stop_recording()
 
-    def toggle_recording(self):
-        if not self.app.is_recording:
-            self.app.start_recording()
-        else:
-            self.app.stop_recording(paste_after=False)
+            elif key == self.app.push_to_talk_key:
+                if self.app.is_recording:
+                    self.app.stop_recording()
 
-    def start_record_and_paste(self):
-        if not self.app.is_recording:
-            self.app.start_recording()
-
-    def stop_record_and_paste(self):
-        if self.app.is_recording:
-            self.app.stop_recording(paste_after=True)
-
-    def start_push_to_talk(self):
-        if not self.app.is_recording:
-            self.app.start_recording()
-
-    def stop_push_to_talk(self):
-        if self.app.is_recording:
-            self.app.stop_recording(paste_after=True)
+        except Exception as e:
+            print(f"Fehler in on_release: {e}")

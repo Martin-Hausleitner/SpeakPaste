@@ -1,5 +1,5 @@
-# sieve_transcriber.py
 import sieve
+
 
 class SieveTranscriber:
     def __init__(self):
@@ -7,15 +7,20 @@ class SieveTranscriber:
 
     def transcribe(self, audio_file_path):
         try:
-            file = sieve.File(path=audio_file_path)
+            # Laden Sie die Audiodatei als Bytes
+            with open(audio_file_path, 'rb') as f:
+                audio_bytes = f.read()
+
+            # Erstellen Sie ein Sieve-File-Objekt mit der Audiodatei
+            file = sieve.File(content=audio_bytes)
 
             # Parameter gemäß Ihren Anforderungen
-            word_level_timestamps = False
+            word_level_timestamps = True
             speaker_diarization = False
             speed_boost = True
             backend = "stable-ts"
-            source_language = "de"
-            target_language = "de"
+            source_language = ""
+            target_language = ""
             min_speakers = -1
             max_speakers = -1
             min_silence_length = 0.4
@@ -28,6 +33,7 @@ class SieveTranscriber:
             pyannote_segmentation_threshold = 0.8
             initial_prompt = ""
 
+            # Rufen Sie die Transkriptionsfunktion auf
             speech_transcriber = sieve.function.get("sieve/speech_transcriber")
             output = speech_transcriber.run(
                 file,
@@ -50,10 +56,13 @@ class SieveTranscriber:
                 initial_prompt
             )
 
+            transcribed_text = ""
             for output_object in output:
-                transcribed_text = output_object.get("text", "")
-                return transcribed_text
+                transcribed_text += output_object.get("text", "")
+            return transcribed_text
 
         except Exception as e:
             print(f"Ein Fehler ist während der Transkription aufgetreten: {e}")
+            import traceback
+            traceback.print_exc()
             return ""
